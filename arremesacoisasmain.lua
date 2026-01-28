@@ -2,56 +2,59 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
-local forcaArremesso = 800
-local alcance = 35 
+local forcaArremesso = 1000 -- Aumentado para arremessos épicos
+local alcance = 40
 local objetoAtual = nil
+local bp, bg -- Variáveis para as forças
 
--- Criando a UI que não some
+-- Interface que não reseta
 local sg = Instance.new("ScreenGui", player.PlayerGui)
-sg.Name = "TelecineseFinal"
+sg.Name = "TelecineseV4"
 sg.ResetOnSpawn = false
 
 local btn = Instance.new("TextButton", sg)
-btn.Size = UDim2.new(0, 120, 0, 120)
-btn.Position = UDim2.new(0.7, 0, 0.4, 0)
-btn.Text = "BUSCAR"
-btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+btn.Size = UDim2.new(0, 130, 0, 130)
+btn.Position = UDim2.new(0.75, 0, 0.4, 0)
+btn.Text = "PUXAR"
+btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 btn.TextColor3 = Color3.new(1, 1, 1)
+btn.Font = Enum.Font.BlackOpsOne -- Estilo mais "hub"
 
--- Função para forçar a posse do objeto (Network Ownership)
-local function tomarPosse(part)
-    if part:IsA("BasePart") then
-        part.CanCollide = false
-        -- Tenta forçar a física para você
-        task.spawn(function()
-            while objetoAtual == part do
-                if part:FindFirstChildOfClass("BodyPosition") == nil then
-                    part.Velocity = Vector3.new(0, 0.1, 0) -- Pequena força para acordar a física
-                end
-                task.wait(0.1)
-            end
-        end)
-    end
-end
+-- Medidor de Velocidade (SPS)
+local medidor = Instance.new("TextLabel", btn)
+medidor.Size = UDim2.new(1, 0, 0, 30)
+medidor.Position = UDim2.new(0, 0, 1, 10)
+medidor.Text = "0 SPS"
+medidor.TextColor3 = Color3.new(1, 1, 0)
+medidor.BackgroundTransparency = 1
 
-RunService.Heartbeat:Connect(function()
+-- Loop de Movimentação
+RunService.RenderStepped:Connect(function()
     if objetoAtual and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         local root = player.Character.HumanoidRootPart
-        local alvoPos = (root.CFrame * CFrame.new(0, 3, -12)).Position
+        local alvoPos = (root.CFrame * CFrame.new(0, 3, -12)).Position -- 12 studs na frente
         
-        -- Move o objeto
-        objetoAtual.AssemblyLinearVelocity = (alvoPos - objetoAtual.Position) * 25
-        objetoAtual.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        -- Atualiza a posição e rotação da força
+        if bp and bg then
+            bp.Position = alvoPos
+            bg.CFrame = root.CFrame
+        end
+        
+        -- Medidor de Velocidade
+        local vel = math.floor(objetoAtual.AssemblyLinearVelocity.Magnitude)
+        medidor.Text = vel .. " SPS"
+    else
+        medidor.Text = "0 SPS"
     end
 end)
 
 btn.MouseButton1Click:Connect(function()
     if not objetoAtual then
-        local menorDist = alcance
         local alvo = nil
+        local menorDist = alcance
         
+        -- Busca a peça mais próxima que NÃO está ancorada
         for _, p in pairs(workspace:GetDescendants()) do
-            -- NDS: Só pega partes que não estão presas (Anchored = false)
             if p:IsA("BasePart") and not p.Anchored and p.Parent ~= player.Character then
                 local d = (p.Position - player.Character.HumanoidRootPart.Position).Magnitude
                 if d < menorDist then
@@ -63,18 +66,31 @@ btn.MouseButton1Click:Connect(function()
         
         if alvo then
             objetoAtual = alvo
-            tomarPosse(objetoAtual)
+            objetoAtual.CanCollide = false -- Evita bater em você
+            
+            -- Cria a força de posição
+            bp = Instance.new("BodyPosition", objetoAtual)
+            bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bp.P = 15000 -- Suavidade do puxão
+            
+            -- Cria a força de rotação (trava o bloco)
+            bg = Instance.new("BodyGyro", objetoAtual)
+            bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            
             btn.Text = "LANÇAR!"
-            btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+            btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
         end
     else
-        -- Arremessa
+        -- LANÇAR
+        if bp then bp:Destroy() end
+        if bg then bg:Destroy() end
+        
         local direcao = player.Character.HumanoidRootPart.CFrame.LookVector
         objetoAtual.CanCollide = true
-        objetoAtual.AssemblyLinearVelocity = (direcao * forcaArremesso) + Vector3.new(0, 20, 0)
+        objetoAtual.AssemblyLinearVelocity = (direcao * forcaArremesso) + Vector3.new(0, 30, 0)
         
         objetoAtual = nil
-        btn.Text = "BUSCAR"
-        btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        btn.Text = "PUXAR"
+        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     end
 end)

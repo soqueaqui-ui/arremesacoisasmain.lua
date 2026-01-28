@@ -2,49 +2,49 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
-local forcaArremesso = 1000 -- Aumentado para arremessos épicos
-local alcance = 40
+local forcaArremesso = 1200
+local alcance = 50 
 local objetoAtual = nil
-local bp, bg -- Variáveis para as forças
+local attachmentPlayer, attachmentObj, rope
 
--- Interface que não reseta
+-- Interface Resistente
 local sg = Instance.new("ScreenGui", player.PlayerGui)
-sg.Name = "TelecineseV4"
+sg.Name = "MagnetoHub"
 sg.ResetOnSpawn = false
 
 local btn = Instance.new("TextButton", sg)
-btn.Size = UDim2.new(0, 130, 0, 130)
-btn.Position = UDim2.new(0.75, 0, 0.4, 0)
-btn.Text = "PUXAR"
-btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+btn.Size = UDim2.new(0, 120, 0, 120)
+btn.Position = UDim2.new(0.7, 0, 0.4, 0)
+btn.Text = "PESCAR"
+btn.BackgroundColor3 = Color3.fromRGB(50, 50, 150)
 btn.TextColor3 = Color3.new(1, 1, 1)
-btn.Font = Enum.Font.BlackOpsOne -- Estilo mais "hub"
 
--- Medidor de Velocidade (SPS)
+-- Medidor de SPS
 local medidor = Instance.new("TextLabel", btn)
 medidor.Size = UDim2.new(1, 0, 0, 30)
-medidor.Position = UDim2.new(0, 0, 1, 10)
+medidor.Position = UDim2.new(0, 0, 1, 5)
 medidor.Text = "0 SPS"
-medidor.TextColor3 = Color3.new(1, 1, 0)
+medidor.TextColor3 = Color3.new(0, 1, 0)
 medidor.BackgroundTransparency = 1
 
--- Loop de Movimentação
+local function limparFisica()
+    if rope then rope:Destroy() end
+    if attachmentPlayer then attachmentPlayer:Destroy() end
+    if attachmentObj then attachmentObj:Destroy() end
+    if objetoAtual then 
+        objetoAtual.CanCollide = true 
+        objetoAtual = nil
+    end
+end
+
 RunService.RenderStepped:Connect(function()
     if objetoAtual and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         local root = player.Character.HumanoidRootPart
-        local alvoPos = (root.CFrame * CFrame.new(0, 3, -12)).Position -- 12 studs na frente
+        -- Mantém a peça levitando na frente
+        objetoAtual.AssemblyLinearVelocity = ((root.CFrame * CFrame.new(0, 2, -12)).Position - objetoAtual.Position) * 30
         
-        -- Atualiza a posição e rotação da força
-        if bp and bg then
-            bp.Position = alvoPos
-            bg.CFrame = root.CFrame
-        end
-        
-        -- Medidor de Velocidade
         local vel = math.floor(objetoAtual.AssemblyLinearVelocity.Magnitude)
         medidor.Text = vel .. " SPS"
-    else
-        medidor.Text = "0 SPS"
     end
 end)
 
@@ -53,7 +53,6 @@ btn.MouseButton1Click:Connect(function()
         local alvo = nil
         local menorDist = alcance
         
-        -- Busca a peça mais próxima que NÃO está ancorada
         for _, p in pairs(workspace:GetDescendants()) do
             if p:IsA("BasePart") and not p.Anchored and p.Parent ~= player.Character then
                 local d = (p.Position - player.Character.HumanoidRootPart.Position).Magnitude
@@ -66,31 +65,8 @@ btn.MouseButton1Click:Connect(function()
         
         if alvo then
             objetoAtual = alvo
-            objetoAtual.CanCollide = false -- Evita bater em você
+            objetoAtual.CanCollide = false
             
-            -- Cria a força de posição
-            bp = Instance.new("BodyPosition", objetoAtual)
-            bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-            bp.P = 15000 -- Suavidade do puxão
-            
-            -- Cria a força de rotação (trava o bloco)
-            bg = Instance.new("BodyGyro", objetoAtual)
-            bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-            
-            btn.Text = "LANÇAR!"
-            btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-        end
-    else
-        -- LANÇAR
-        if bp then bp:Destroy() end
-        if bg then bg:Destroy() end
-        
-        local direcao = player.Character.HumanoidRootPart.CFrame.LookVector
-        objetoAtual.CanCollide = true
-        objetoAtual.AssemblyLinearVelocity = (direcao * forcaArremesso) + Vector3.new(0, 30, 0)
-        
-        objetoAtual = nil
-        btn.Text = "PUXAR"
-        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    end
-end)
+            -- Cria a conexão física (o servidor não consegue ignorar isso)
+            attachmentPlayer = Instance.new("Attachment", player.Character.HumanoidRootPart)
+            attachmentObj = Instance.new("Attachment",

@@ -3,77 +3,67 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
 -- Configurações
-local forcaArremesso = 600 -- Aumentei para ser mais potente
-local alcance = 25 
+local forcaArremesso = 800
+local alcance = 30
 local objetoAtual = nil
 
--- 1. INTERFACE QUE NÃO SOME AO MORRER
--- O segredo é o ResetOnSpawn = false
+-- Interface Resistente
 local sg = Instance.new("ScreenGui")
-sg.Name = "ArremessaHUB"
-sg.ResetOnSpawn = false -- ISSO impede que o menu suma quando você morre
+sg.Name = "TelecineseHub"
+sg.ResetOnSpawn = false
 sg.Parent = player:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame", sg)
-frame.Size = UDim2.new(0, 200, 0, 150)
-frame.Position = UDim2.new(0.1, 0, 0.5, 0)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.Active = true
-frame.Draggable = true -- Para você mover o botão no mobile
-
-local btn = Instance.new("TextButton", frame)
-btn.Size = UDim2.new(0.9, 0, 0.8, 0)
-btn.Position = UDim2.new(0.05, 0, 0.1, 0)
-btn.Text = "PEGAR OBJETO"
-btn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+local btn = Instance.new("TextButton", sg)
+btn.Size = UDim2.new(0, 150, 0, 150)
+btn.Position = UDim2.new(0.7, 0, 0.4, 0) -- Posição boa para o dedão no mobile
+btn.Text = "PUXAR"
+btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 btn.TextColor3 = Color3.new(1, 1, 1)
-btn.TextScaled = true
+btn.Shape = Enum.FrameShape.Circle -- Deixa o botão redondo se o seu executor suportar
 
--- 2. LÓGICA DE FÍSICA APRIMORADA
-RunService.Stepped:Connect(function()
+-- Lógica de Flutuação (Ímã Travado)
+RunService.RenderStepped:Connect(function()
     if objetoAtual and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         local root = player.Character.HumanoidRootPart
-        -- Mantém o objeto 15 studs na frente e um pouco acima
-        local alvoPos = (root.CFrame * CFrame.new(0, 5, -15)).Position 
+        -- Posição alvo: 10 studs na frente e 2 acima do peito
+        local alvoPos = (root.CFrame * CFrame.new(0, 2, -10)).Position
         
-        -- Move a peça suavemente
-        objetoAtual.AssemblyLinearVelocity = (alvoPos - objetoAtual.Position) * 15
-        objetoAtual.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        
-        -- Anti-Arremesso Próprio: Desativa colisão enquanto segura
+        -- Congela a física natural e aplica a nossa
         objetoAtual.CanCollide = false
+        objetoAtual.AssemblyLinearVelocity = (alvoPos - objetoAtual.Position) * 20
+        objetoAtual.AssemblyAngularVelocity = Vector3.new(0, 0, 0) -- Impede de girar
     end
 end)
 
 btn.MouseButton1Click:Connect(function()
     if not objetoAtual then
+        -- BUSCAR OBJETO
         local menorDist = alcance
-        local parteEncontrada = nil
+        local alvo = nil
         
-        -- Busca partes próximas (NDS tem muitas partes desancoradas)
         for _, p in pairs(workspace:GetDescendants()) do
             if p:IsA("BasePart") and not p.Anchored and p.Parent ~= player.Character then
                 local d = (p.Position - player.Character.HumanoidRootPart.Position).Magnitude
                 if d < menorDist then
                     menorDist = d
-                    parteEncontrada = p
+                    alvo = p
                 end
             end
         end
         
-        if parteEncontrada then
-            objetoAtual = parteEncontrada
+        if alvo then
+            objetoAtual = alvo
             btn.Text = "LANÇAR!"
             btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
         end
     else
-        -- LANÇAMENTO
+        -- LANÇAR OBJETO
         local direcao = player.Character.HumanoidRootPart.CFrame.LookVector
-        objetoAtual.CanCollide = true -- Ativa colisão para bater nos outros
-        objetoAtual.AssemblyLinearVelocity = (direcao * forcaArremesso) + Vector3.new(0, 40, 0)
+        objetoAtual.CanCollide = true
+        objetoAtual.AssemblyLinearVelocity = (direcao * forcaArremesso)
         
         objetoAtual = nil
-        btn.Text = "PEGAR OBJETO"
-        btn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        btn.Text = "PUXAR"
+        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     end
 end)
